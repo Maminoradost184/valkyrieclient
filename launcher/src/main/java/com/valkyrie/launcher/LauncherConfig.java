@@ -120,7 +120,12 @@ final class LauncherConfig {
             mergeDirectory(DIRECTORY.resolve("instance"), game);
             contentDirectory = game;
             instanceDirectory = game;
-        } catch (IOException error) {
+        } catch (IOException | RuntimeException error) {
+            // Files.list(...).toList() бросает UncheckedIOException, а createDirectories —
+            // SecurityException: на машине с нестандартным APPDATA или закрытым
+            // профилем это уходило из load() и убивало запуск до появления окна.
+            // Раскладку каталогов задаёт select() ниже, поэтому тут достаточно
+            // не дать миграции упасть.
             LauncherLog.error("Не удалось объединить старые игровые директории в " + game, error);
         }
     }

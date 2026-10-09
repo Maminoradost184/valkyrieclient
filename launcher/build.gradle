@@ -7,7 +7,7 @@ group = 'com.valkyrie'
 
 // Единственный источник версий: артефакты, jpackage и smokeTest читают их отсюда,
 // чтобы имя собранного zip не расходилось с чеклистом релиза.
-def launcherVersion = '1.0.6'
+def launcherVersion = '1.0.7'
 def clientVersion = '0.9.0-beta'
 
 version = launcherVersion
@@ -196,4 +196,40 @@ tasks.register('windowsInstaller', Exec) {
         '--win-shortcut-prompt',
         '--win-upgrade-uuid', '764b09d8-1890-4b66-83ef-15d32aa26355'
     ]
+}
+
+// Установщик jpackage не умеет вытеснять сборку, созданную без
+// --win-upgrade-uuid: у той случайный UpgradeCode, а кастомный экшен
+// JpFindRelatedProducts всё равно находит продукт по имени и обрывает
+// установку с 1638. На машине с прежней версией новую поставить нельзя вообще,
+// поэтому рядом с установщиком лежит скрипт, который снимает старую
+// регистрацию явно.
+tasks.register('installerSupportFiles') {
+    dependsOn windowsInstaller
+    def outputDir = layout.buildDirectory.dir("installer-${launcherVersion}")
+    def scriptDir = file('installer-scripts')
+    inputs.dir(scriptDir)
+    outputs.dir(outputDir)
+    // Файлы копируются всегда: windowsInstaller удаляет каталог целиком, и
+    // up-to-date проверка по выходному каталогу здесь только мешает.
+    outputs.upToDateWhen { false }
+    doLast {
+        def target = outputDir.get().asFile
+        def psScript = new File(scriptDir, 'Repair-and-Install.ps1')
+        def cmdScript = new File(scriptDir, 'Repair-and-Install.cmd')
+        // PowerShell 5.1 без BOM читает файл в кодировке ANSI и русский текст
+        // рассыпается, поэтому .ps1 пишется с BOM. .cmd наоборот BOM не
+        // переносит вообще: первый символ команды превращается в мусор.
+        psScript.withInputStream { source ->
+            new File(target, 'Repair-and-Install.ps1').withOutputStream { sink ->
+                sink.write((byte) 0xEF)
+                sink.write((byte) 0xBB)
+                sink.write((byte) 0xBF)
+                sink << source
+            }
+        }
+        cmdScript.withInputStream { source ->
+            new File(target, 'Repair-and-Install.cmd').withOutputStream { sink -> sink << source }
+        }
+    }
 }

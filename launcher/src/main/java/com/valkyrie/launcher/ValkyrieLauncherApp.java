@@ -111,6 +111,18 @@ public final class ValkyrieLauncherApp extends Application {
 
     @Override
     public void start(Stage stage) {
+        // Исключение из start() javafx проглатывает, а у собранного лаунчера нет
+        // stderr — без этого ловца падение на шрифтах, стилях или ресурсах
+        // выглядит для пользователя как «программа не запускается».
+        try {
+            build(stage);
+        } catch (Throwable error) {
+            LauncherFailure.report("Ошибка при сборке окна лаунчера", error);
+            Platform.exit();
+        }
+    }
+
+    private void build(Stage stage) {
         this.stage = stage;
         LauncherLog.info("Launcher started: java=" + System.getProperty("java.version") + ", home=" + System.getProperty("java.home")
             + ", game=" + config.instanceDirectory);

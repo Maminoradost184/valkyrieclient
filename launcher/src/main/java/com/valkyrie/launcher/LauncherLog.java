@@ -15,6 +15,13 @@ final class LauncherLog {
 
     private LauncherLog() {}
 
+    /** Путь к журналу для аварийного диалога: установленный лаунчер работает
+     *  без консоли, поэтому сообщить пользователю, куда смотреть стек-трейс,
+     *  можно только текстом на экране. */
+    static String path() {
+        return FILE.toString();
+    }
+
     static void info(String message) {
         write("INFO", message, null);
     }
